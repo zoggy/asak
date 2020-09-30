@@ -1,4 +1,4 @@
-FROM ocaml/opam2:4.08
+FROM ocaml/opam2:4.11
 # NB: opam-repositroy is here: /home/opam/opam-repository
 
 RUN sudo apt-get update
@@ -15,26 +15,32 @@ RUN sudo apt-get install -y \
     libsdl2-mixer-dev libsdl2-net-dev libelementary-dev coinor-csdp \
     cmake clang llvm-6.0-dev autoconf librocksdb-dev libaio-dev
 
-RUN opam install dune
-
-RUN git clone --branch 4.08 --single-branch --depth=1 https://github.com/nobrakal/ocaml.git /home/opam/ocaml
-
+# Setup for asak
 RUN mkdir /tmp/asak
-
 ENV ASAK_PREFIX /tmp/asak
 
-RUN cd /home/opam/ocaml \
-    && opam switch create . --empty \
+# Clone our custom repo
+RUN rm -rf /home/opam/opam-repository
+RUN git clone --branch asak_comp --single-branch --depth=1 https://github.com/nobrakal/opam-repository.git /home/opam/opam-repository
+
+# Prepare a solver for marracheck
+RUN git clone git clone https://github.com/sbjoshi/Open-WBO-Inc /home/opam/solver
+RUN cd /home/opam/solver \
+    && make r
+
+ENV PATH="/home/opam/solver:${PATH}"
+
+# Prepare marracheck
+RUN git clone https://github.com/Armael/marracheck.git /home/opam/marracheck
+
+RUN cd /home/opam/marracheck \
+    && git submodule update --init --recursive \
+    && opam switch create --deps-only . ocaml-base-compiler.4.09.1 \
     && eval $(opam env) \
-    && opam install .
+    && dune build
 
-COPY . ./
-
-RUN sudo chown -R opam:nogroup .
-
-RUN eval $(opam env) \
-    && dune build utils/build_all_opam.exe
+RUN mkdir /home/opam/marracheck-work
 
 VOLUME ["/tmp/asak"]
 
-ENTRYPOINT ["_build/default/utils/build_all_opam.exe", "/home/opam/ocaml", "/home/opam/opam-repository/packages"]
+ENTRYPOINT dune exec -- src/marracheck.exe run ../opam-repository/ ../marracheck-work/ "ocaml-variants.4.11.2+asak"
