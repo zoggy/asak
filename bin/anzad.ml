@@ -126,8 +126,11 @@ let hash_file full_file =
       (fun x -> Asak.Lambda_normalization.(normalize_local_variables (inline_all x)))
       lambdas in
   let hash_list =
-    Asak.Lambda_hash.(hash_all {should_sort=false; hash_var=true} 0 lambdas) in
-  List.map (fun (x,(h,_)) -> x,h) hash_list
+    Asak.Lambda_hash.(hash_all
+     {should_sort=false; hash_var=true(*; hash_const=false*)}
+     (Asak.Lambda_hash.Hard 0) lambdas)
+  in
+  List.map (fun (x,(h,_)) -> x,(h:(int * Digest.t))) hash_list
 
 let is_ml x =
   try
@@ -150,7 +153,7 @@ let expand_directories xs =
   List.concat (List.map aux xs)
 
 let update_db =
-  let update_binding db ((x,_),h) =
+  let update_binding db ((x,_),(h:(int*Digest.t))) =
     let xs =
       try Asak.Clustering.HMap.find h db
       with Not_found -> [] in

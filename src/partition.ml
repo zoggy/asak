@@ -78,7 +78,10 @@ let hm_part prof m =
   let lst =
     List.fold_left
       (fun acc (t,(_,x)) ->
-        let e = Lambda_hash.hash_lambda {should_sort=true; hash_var=false} threshold x in
+        let e = Lambda_hash.hash_lambda
+           {should_sort=true; hash_var=false(*; hash_const=false*)}
+             threshold x
+         in
         (t,e)::acc
       ) [] m in
   Clustering.cluster lst

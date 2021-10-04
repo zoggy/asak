@@ -14,6 +14,7 @@ type config =
     (** If we sort all lists of hashes. This is useful to identify more codes,
      but can identify unfactorizable code. *)
     hash_var : bool; (** If we hash names in the AST. *)
+    (*hash_const: bool; (** If we hash constants in the AST. *)*)
   }
 
 (** A fingerprint is a weighted Digest.t *)
@@ -43,10 +44,10 @@ val hash_lambda :
 
 val map_snd : ('a -> 'b) -> ('c * 'a) list -> ('c * 'b) list
 
-(** Using a hard threshold, hash a list of lambda expressions from  {! Parse_structure.read_structure }. *)
+(** Using a threshold, hash a list of lambda expressions from  {! Parse_structure.read_structure }. *)
 val hash_all :
   config ->
-  int ->
+  threshold->
   ('a * Lambda.lambda) list ->
   ('a * hash) list
 

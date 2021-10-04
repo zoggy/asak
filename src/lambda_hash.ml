@@ -13,6 +13,7 @@ type threshold = Percent of int | Hard of int
 type config =
   { should_sort : bool;
     hash_var : bool;
+    (*hash_const : bool ;*)
   }
 
 type fingerprint = int * Digest.t
@@ -74,6 +75,29 @@ let hash_meth_kind x = h1 @@
    | Public -> "Public"
    | Cached -> "Cached"
 
+(*
+let hash_constant =
+  let rec hash_cst b = function
+  | Lambda.Const_base c ->
+      let s = match c with
+        | Asttypes.Const_int n -> string_of_int n
+        | Const_char c -> String.make 1 c
+        | Const_string (s,_,_) -> s
+        | Const_float s -> s
+        | Const_int32 n -> Int32.to_string n
+        | Const_int64 n -> Int64.to_string n
+        | Const_nativeint n -> Nativeint.to_string n
+      in
+      Buffer.add_string b s
+  | Const_block (_n, l) -> List.iter (hash_cst b) l
+  | Const_float_array l -> List.iter (Buffer.add_string b) l
+  | Const_immstring s -> Buffer.add_string b s
+  in
+  fun c ->
+    let b = Buffer.create 256 in
+    hash_cst b c;
+    h1 (Buffer.contents b)
+*)
 let hash_lambda config x =
   let hash_string_lst = hash_string_lst config.should_sort in
   let hash_lst_anon f = hash_lst_anon config.should_sort f in
@@ -89,11 +113,27 @@ let hash_lambda config x =
     match x with
     | Lvar var ->
        hash_var var
-    | Lconst _ ->
-       h1 "Lconst"
+    | Lconst _const ->
+       (*if config.hash_const
+       then hash_constant const
+       else*) h1 "Lconst"
     | Lapply x ->
-       hash_string_lst "Lapply"
-         (hash_lambda' x.ap_func :: (List.map hash_lambda' (x.ap_args)))
+       (*if config.hash_const
+        then
+          let subs = List.map hash_lambda' x.ap_args in
+          let hash_arg = Digest.string "__ARG__" in
+          let (anon,lst) = List.fold_left
+            (fun (acc_anon, acc_l) (u,l,x) ->
+               ((u,[],hash_arg)::acc_anon, (u,x)::l@acc_l))
+               ([], []) subs
+          in
+          let (w,_,h) = hash_string_lst "Lapply"
+            (hash_lambda' x.ap_func :: anon)
+          in
+          (w, lst, h)
+        else*)
+          hash_string_lst "Lapply"
+            (hash_lambda' x.ap_func :: (List.map hash_lambda' (x.ap_args)))
     | Lfunction x ->
        hash_string_lst "Lfunction"
          [ hash_lambda' x.body ]
@@ -204,7 +244,7 @@ let hash_lambda config threshold l =
 
 let map_snd f xs = List.map (fun (x,y) -> x,f y) xs
 
-let hash_all config hard_weight xs =
-  map_snd (hash_lambda config (Hard hard_weight)) xs
+let hash_all config threshold xs =
+  map_snd (hash_lambda config threshold) xs
 
 let escape_hash ((p,h),xs) = (p,String.escaped h),List.map (fun (p,h) -> p,String.escaped h) xs

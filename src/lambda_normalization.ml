@@ -5,7 +5,7 @@
  * asak is distributed under the terms of the MIT license. See the
  * included LICENSE file for details. *)
 
-open Lambda
+
 
 let map_snd aux = List.map (fun (e,x) -> e, aux x)
 
@@ -16,7 +16,7 @@ let map_opt aux = function
 let fold_lambda lvar llet =
   let rec aux expr =
   match expr with
-  | Lvar x -> lvar x
+  | Lambda.Lvar x -> lvar x
   | Lconst _ -> expr
   | Llet (k,e,ident,l,r) ->
      llet aux k e ident l r
@@ -73,18 +73,18 @@ let replace ident body =
   let lvar x =
     if x = ident
     then body
-    else Lvar x in
-  let llet aux a b c d e = Llet (a,b,c,aux d,aux e) in
+    else Lambda.Lvar x in
+  let llet aux a b c d e = Lambda.Llet (a,b,c,aux d,aux e) in
   fold_lambda lvar llet
 
 (* Is the definition inlineable ? *)
 let inlineable x f =
   match x with
-  | Alias -> true
+  | Lambda.Alias -> true
   | Strict ->
      begin
        match f with
-       | Lvar _ | Lconst _ -> true
+       | Lambda.Lvar _ | Lconst _ -> true
        | _ -> false
      end
   | _  -> false
@@ -92,13 +92,13 @@ let inlineable x f =
 (* Inline all possible "let definitions"
    (that is, all "let definitions" without a side effet) *)
 let inline_all =
-  let lvar x = Lvar x in
+  let lvar x = Lambda.Lvar x in
   let llet aux k e ident l r =
     if inlineable k l
     then
       aux (replace ident l r)
     else
-      Llet (k, e, ident, aux l, aux r) in
+      Lambda.Llet (k, e, ident, aux l, aux r) in
   fold_lambda lvar llet
 
 let extract_params_name xs =
@@ -120,11 +120,11 @@ let normalize_local_variables ?name x =
   let rec aux i j letbinds x =
     let aux' = aux i j letbinds in
     match x with
-    | Lvar var ->
+    | Lambda.Lvar var ->
        begin
          match List.assoc_opt var letbinds with
          | None -> x
-         | Some x -> Lvar (create_ident (string_of_int x))
+         | Some x -> Lambda.Lvar (create_ident (string_of_int x))
        end
     | Lconst _ -> x
     | Lapply x ->
